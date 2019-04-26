@@ -1,0 +1,111 @@
+#!/bin/bash
+###############################################################################
+# Project: hi-cli
+# Description: The cross platform development toolkit - hi-cli
+# Author: John Deng (john.deng@outlook.com)
+#
+# Copyright (c) 2014-2017 John Deng (john.deng@outlook.com)
+#
+# Licensed under the Apache License, Version 2.0 (the License);
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an AS IS BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: John Deng (john.deng@outlook.com)
+# Updated: Tue Feb 21 20:19:52 CST 2017
+# module: ingress
+# Action: create
+###############################################################################
+
+source "${HI_CLI_HOME}/bin/colors"
+source "${HI_CLI_HOME}/bin/logging"
+source "${HI_CLI_HOME}/bin/utils"
+###############################################################################
+
+function run() {
+    log_debug "CMD_LINE: ${CMD_LINE}"
+    
+    if [ "${app}" == "" ]; then
+        if [ "${arg4}" != "" ]; then
+            app=${arg4}
+        else
+            echo "Please input app=your-app"
+            exit 1
+        fi
+    fi
+    
+    log_debug "creating service for app ${app}, ip ${ip}, port ${port}  ..."
+    
+    if [ "${port}" == "" ]; then
+        port=80
+    fi
+    
+    if [ "${domain}" == "" ]; then
+        domain="${INGRESS_DOMAIN}"
+    fi
+    
+    if [ "${domain}" == "" ]; then
+        log_warn "You should set your own domain, e.g. export INGRESS_DOMAIN=your.company.com"
+        domain="example.com"
+    fi
+    
+    anno_protocol=
+    anno_entry=
+    if [  "${https}" == "https" ]; then
+        anno_protocol="ingress.kubernetes.io/protocol: https"
+        anno_entry="traefik.ingress.kubernetes.io/frontend-entry-points: https"
+    fi
+    
+  kubectl apply -f - <<_EOF_
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${app}
+spec:
+  ports:
+  - port: ${port}
+    protocol: TCP
+    targetPort: ${port}
+  type: ClusterIP
+_EOF_
+
+  if [ "${ip}" != "" ]; then
+  
+    kubectl apply -f - <<_EOF_
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ${app}
+subsets:
+- addresses:
+  - ip: ${ip}
+  ports:
+  - port: ${port}
+    protocol: TCP
+_EOF_
+
+    fi
+
+    if [[ $? == 0 ]]; then
+        log_info "Created service for ${app}"
+    else
+        log_error "Failed to create ingress"
+    fi
+    
+    result=$?
+    
+    eval  $1="\${result}"
+    eval  $2="\${cli}"
+}
+
+###############################################################################
+
+
+
