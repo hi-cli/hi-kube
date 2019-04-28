@@ -30,39 +30,55 @@ source "${HI_CLI_HOME}/bin/utils"
 ###############################################################################
 
 function run() {
-    log_debug "CMD_LINE: ${CMD_LINE}"
-    
-    if [ "${app}" == "" ]; then
-        if [ "${arg4}" != "" ]; then
-            app=${arg4}
-        else
-            echo "Please input app=your-app"
-            exit 1
-        fi
-    fi
-    
-    log_debug "creating service for app ${app}, ip ${ip}, port ${port}  ..."
-    
-    if [ "${port}" == "" ]; then
-        port=80
-    fi
-    
-    if [ "${domain}" == "" ]; then
-        domain="${INGRESS_DOMAIN}"
-    fi
-    
-    if [ "${domain}" == "" ]; then
-        log_warn "You should set your own domain, e.g. export INGRESS_DOMAIN=your.company.com"
-        domain="example.com"
-    fi
-    
-    anno_protocol=
-    anno_entry=
-    if [  "${https}" == "https" ]; then
-        anno_protocol="ingress.kubernetes.io/protocol: https"
-        anno_entry="traefik.ingress.kubernetes.io/frontend-entry-points: https"
-    fi
-    
+  log_debug "CMD_LINE: ${CMD_LINE}"
+  
+  if [ "${app}" == "" ]; then
+      if [ "${arg4}" != "" ]; then
+          app=${arg4}
+      else
+          echo "Please input app=your-app"
+          exit 1
+      fi
+  fi
+  
+  log_debug "creating service for app ${app}, ip ${ip}, port ${port}  ..."
+  
+  if [ "${port}" == "" ]; then
+      port=80
+  fi
+  
+  if [ "${domain}" == "" ]; then
+      domain="${INGRESS_DOMAIN}"
+  fi
+  
+  if [ "${domain}" == "" ]; then
+      log_warn "You should set your own domain, e.g. export INGRESS_DOMAIN=your.company.com"
+      domain="example.com"
+  fi
+  
+  anno_protocol=
+  anno_entry=
+  if [  "${https}" == "https" ]; then
+      anno_protocol="ingress.kubernetes.io/protocol: https"
+      anno_entry="traefik.ingress.kubernetes.io/frontend-entry-points: https"
+  fi
+      
+  ports=($port)
+  ports=(${port//:/ })
+  if [ "${#ports[@]}" == "1" ]; then
+      servicePort=${port}
+      targetPort=${port}
+  elif [ "${#ports[@]}" == "2" ]; then
+    servicePort=${ports[0]}
+    targetPort=${ports[1]}
+  else
+      log_error "no port is specified"
+      exit -1
+  fi
+  
+  log_debug "servicePort: ${servicePort}"
+  log_debug "targetPort: ${targetPort}"
+  
   kubectl apply -f - <<_EOF_
 apiVersion: v1
 kind: Service
@@ -70,14 +86,14 @@ metadata:
   name: ${app}
 spec:
   ports:
-  - port: ${port}
+  - port: ${servicePort}
     protocol: TCP
-    targetPort: ${port}
+    targetPort: ${targetPort}
   type: ClusterIP
 _EOF_
-
-  if [ "${ip}" != "" ]; then
-  
+    
+    if [ "${ip}" != "" ]; then
+        
     kubectl apply -f - <<_EOF_
 apiVersion: v1
 kind: Endpoints
@@ -87,12 +103,12 @@ subsets:
 - addresses:
   - ip: ${ip}
   ports:
-  - port: ${port}
+  - port: ${targetPort}
     protocol: TCP
 _EOF_
-
+        
     fi
-
+    
     if [[ $? == 0 ]]; then
         log_info "Created service for ${app}"
     else

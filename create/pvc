@@ -36,7 +36,7 @@ function run() {
     storage_classes=$(echo $(kubectl get StorageClass | grep -v NAME | awk '{print $1}'))
     
     input name "pvc name" "${name}"
-    input size "pvc size" "${size}" "G"
+    input size "pvc size" "${size}" "1M"
     selection storage_class "${storage_classes}" "Please select storageClassName: " "single"
     selection mode "ReadWriteOnce ReadOnlyMany ReadWriteMany" "Please select accessModes: " "single"
 
@@ -53,7 +53,7 @@ function run() {
       storageClassName: ${storage_class}
       resources:
         requests:
-          storage: ${size}Gi
+          storage: ${size}
     status: {}
 _EOF_
     
