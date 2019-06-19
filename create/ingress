@@ -54,6 +54,13 @@ function run() {
         domain="${INGRESS_DOMAIN}"
     fi
     
+    host="${app}-${ns}.${domain}"
+    if [ "${path}" == "" ]; then
+        path='/'
+    else
+        host="dev.${domain}"
+    fi
+    
     if [ "${domain}" == "" ]; then
         log_warn "You should set your own domain, e.g. export INGRESS_DOMAIN=your.company.com"
         domain="example.com"
@@ -73,14 +80,16 @@ metadata:
   name: ${app}
   annotations:
     kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/rewrite-target: /
     ${anno_protocol}
     ${anno_entry}
 spec:
   rules:
-  - host: ${app}-${ns}.${domain}
+  - host: ${host}
     http:
       paths:
-      - path: /
+      - path: ${path}
         backend:
           serviceName: ${app}
           servicePort: ${port}

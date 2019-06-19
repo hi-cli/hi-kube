@@ -83,6 +83,11 @@ function run() {
     if [ "${protocol}" == "" ]; then
         protocol=TCP
     fi
+
+    type=${type}
+    if [ "${type}" == "" ]; then
+        type=ClusterIP
+    fi
     
     if [ "${url}" != "" ]; then
     kubectl apply -f - <<_EOF_
@@ -108,7 +113,7 @@ spec:
   - port: ${servicePort}
     protocol: ${protocol}
     targetPort: ${targetPort}
-  type: ClusterIP
+  type: ${type}
 _EOF_
     fi
     if [ "${ip}" != "" ]; then
